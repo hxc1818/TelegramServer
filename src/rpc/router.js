@@ -12,6 +12,9 @@ import * as misc from './handlers/misc.js';
 import * as media from './handlers/media.js';
 import * as extra from './handlers/messaging-extra.js';
 import * as groups from './handlers/groups.js';
+import * as accountHandlers from './handlers/account.js';
+import * as foldersHandlers from './handlers/folders.js';
+import * as stickersHandlers from './handlers/stickers.js';
 
 export const METHOD_IDS = Object.freeze({
   invokeWithLayer: 0xda9b0d0d,
@@ -57,6 +60,12 @@ export const METHOD_IDS = Object.freeze({
   'channels.getFullChannel': 0x8736a09,
   'channels.editTitle': 0x566decd0,
   'channels.getMessages': 0xad8c9a23,
+  ...accountHandlers.METHOD_IDS,
+  'messages.toggleDialogPin': 0xa731e257,
+  'messages.getPinnedDialogs': 0xd6b94df2,
+  'folders.editPeerFolders': 0x6847d0ab,
+  'chatlists.getChatlistUpdates': 0x89419521,
+  ...stickersHandlers.METHOD_ID,
 });
 
 const ID_TO_METHOD = Object.freeze(Object.fromEntries(
@@ -127,6 +136,37 @@ const HANDLERS = Object.freeze({
   'channels.getFullChannel': groups.getFullChannel,
   'channels.editTitle': groups.editTitle,
   'channels.getMessages': groups.getMessages,
+  'account.updateProfile': accountHandlers.updateProfile,
+  'account.updateUsername': accountHandlers.updateUsername,
+  'account.setStatus': accountHandlers.setStatus,
+  'account.updateStatus': accountHandlers.setStatus,
+  'account.getPrivacy': accountHandlers.getPrivacy,
+  'account.setPrivacy': accountHandlers.setPrivacy,
+  'account.getNotifySettings': accountHandlers.getNotifySettings,
+  'account.updateNotifySettings': accountHandlers.updateNotifySettings,
+  'account.getWallPapers': accountHandlers.getWallPapers,
+  'account.getThemes': accountHandlers.getThemes,
+  'contacts.addContact': accountHandlers.addContact,
+  'contacts.deleteContacts': accountHandlers.deleteContacts,
+  'contacts.importContacts': accountHandlers.importContacts,
+  'contacts.block': accountHandlers.block,
+  'contacts.unblock': accountHandlers.unblock,
+  'contacts.getBlocked': accountHandlers.getBlocked,
+  'auth.exportAuthorization': accountHandlers.exportAuthorization,
+  'auth.importAuthorization': accountHandlers.importAuthorization,
+  'messages.toggleDialogPin': foldersHandlers.toggleDialogPin,
+  'messages.getPinnedDialogs': foldersHandlers.getPinnedDialogs,
+  'folders.editPeerFolders': foldersHandlers.editPeerFolders,
+  'chatlists.getChatlistUpdates': foldersHandlers.getChatlistUpdates,
+  'messages.getStickers': stickersHandlers.getStickers,
+  'messages.getFeaturedStickers': stickersHandlers.getFeaturedStickers,
+  'messages.getStickerSet': stickersHandlers.getStickerSet,
+  'messages.getSavedGifs': stickersHandlers.getSavedGifs,
+  'messages.saveGif': stickersHandlers.saveGif,
+  'messages.getAttachedStickers': stickersHandlers.getAttachedStickers,
+  'stickers.createStickerSet': stickersHandlers.createStickerSet,
+  'stickers.addStickerToSet': stickersHandlers.addStickerToSet,
+  'stickers.removeStickerFromSet': stickersHandlers.removeStickerFromSet,
 });
 
 const SAFE_FALLBACK = Object.freeze({

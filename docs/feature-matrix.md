@@ -23,7 +23,10 @@
 | 功能 | 状态 | 说明 |
 | --- | --- | --- |
 | 手机号 + 固定验证码登录（`auth.sendCode` / `auth.signIn`） | ✅ | `AUTH_CODE` |
-| `auth.exportAuthorization` / 二维码登录 / 2FA（SRP） | ⛔ | 未实现 |
+| 账号导出/导入授权（`auth.exportAuthorization` / `importAuthorization`） | ✅ | 基于简单 token |
+| 个人资料/用户名/隐私/通知设置/在线状态 | ✅ | `account.updateProfile` / `updateUsername` / `setPrivacy` / `getNotifySettings` / `updateStatus` |
+| 联系人增删、导入、屏蔽 | ✅ | `contacts.addContact` / `deleteContacts` / `importContacts` / `block` / `unblock` / `getBlocked` |
+| 二维码登录 / 2FA（SRP） | ⛔ | 未实现 |
 | 注册新账号、改手机号、删除账号 | ⛔ | 未实现 |
 
 ## 消息与会话
@@ -39,7 +42,9 @@
 | 群聊、频道、成员管理 | ✅ | `createChat` / `createChannel` / `addChatUser` / `inviteToChannel` / `getChats` / `getFullChat` / `getFullChannel` / `editTitle` |
 | 搜索 `messages.search` / `searchGlobal` | ✅ | 基于消息文本的本地检索 |
 | 媒体上传、图片/文件下载 | ✅ | `saveFilePart` / `saveBigFilePart` / `getFile` / `sendMedia`（document/photo） |
-| 贴纸 / GIF / 表情 / 投票 / 内联机器人 | 🚧 | 空结果占位，未实现语义 |
+| 贴纸 / GIF / 表情 | ✅ | `getStickers` / `getFeaturedStickers` / `getStickerSet` / `createStickerSet` / `getSavedGifs` / `saveGif`，自带默认贴纸包 |
+| 会话置顶 / 文件夹 | ✅ | `getPinnedDialogs` / `toggleDialogPin` / `editPeerFolders` / `getChatlistUpdates` |
+| 投票 / 内联机器人 | ⛔ | 未实现 |
 | 秘密聊天（E2E）、语音/视频通话 | ⛔ | 范围外 |
 | 跨设备同步、已读回执全量语义、通知推送 | ⛔ | 范围外 |
 

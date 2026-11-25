@@ -11,6 +11,9 @@ import { Store } from './store/store.js';
 import { MediaStore } from './store/media.js';
 import { MessagingExtraStore } from './store/messaging-extra.js';
 import { GroupStore } from './store/groups.js';
+import { AccountStore } from './store/account.js';
+import { FolderStore } from './store/folders.js';
+import { StickerStore } from './store/stickers.js';
 import { Router, methodNameOf } from './rpc/router.js';
 import * as C from './rpc/handlers/codecs.js';
 import { ObfuscatedSocket } from './transport/obfuscation.js';
@@ -72,6 +75,9 @@ export class TelegramServer {
     this.mediaStore = new MediaStore(this.config.dataDir);
     this.messagingExtra = new MessagingExtraStore(this.config.dataDir);
     this.groupStore = new GroupStore(this.config.dataDir);
+    this.accountStore = new AccountStore(this.config.dataDir);
+    this.folderStore = new FolderStore(this.config.dataDir);
+    this.stickerStore = new StickerStore(this.config.dataDir);
     this.router = router || new Router({ store: this.store, keys: this.keys, config: this.config });
     this.authKeys = new Map(); // authKeyId (hex) -> authKey Buffer
     this.salts = new Map(); // authKeyId (hex) -> bigint salt
@@ -95,6 +101,9 @@ export class TelegramServer {
     this.mediaStore?.close();
     this.messagingExtra?.close();
     this.groupStore?.close();
+    this.accountStore?.close();
+    this.folderStore?.close();
+    this.stickerStore?.close();
     this.store.close();
   }
 
@@ -386,6 +395,9 @@ export class TelegramServer {
       mediaStore: this.mediaStore,
       messagingExtra: this.messagingExtra,
       groupStore: this.groupStore,
+      accountStore: this.accountStore,
+      folderStore: this.folderStore,
+      stickerStore: this.stickerStore,
       config: this.config,
     };
     const result = this.router.handle(name, new TLBuffer(body.subarray(4)), ctx);

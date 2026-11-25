@@ -1,0 +1,25 @@
+services:
+  telegramserver:
+    # CI 已构建好镜像；本机没有镜像/网络时用 build 兜底（docker compose up --build）。
+    image: ghcr.io/hxc1818/telegramserver:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: telegramserver
+    restart: unless-stopped
+    ports:
+      - "10443:10443"
+    environment:
+      LISTEN_HOST: "0.0.0.0"
+      LISTEN_PORT: "10443"
+      DATA_DIR: "/data"
+      PUBLIC_IP: "${PUBLIC_IP:?请先在 .env 中设置 PUBLIC_IP}"
+      SERVER_ID: "${SERVER_ID:-1}"
+      API_ID: "${API_ID:-17349}"
+      API_HASH: "${API_HASH:-344583e45741c457fe1862106095a5eb}"
+      AUTH_CODE: "${AUTH_CODE:-123456}"
+      LOG_TL: "${LOG_TL:-0}"
+      # PEM 字符串（PKCS#1）。Compose v2.24+ 支持 .env 中带引号的多行值。
+      RSA_PRIVATE_KEY: "${RSA_PRIVATE_KEY:-}"
+    volumes:
+      - ./data:/data

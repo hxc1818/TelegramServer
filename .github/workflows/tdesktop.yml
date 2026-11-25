@@ -1,0 +1,221 @@
+name: Build patched TDesktop
+
+# ⚠️ 二进制膨胀警告：产物（Telegram + Updater，tar.xz）通常 80–200 MB。
+# 不要把构建产物提交进主分支历史！下面只写入一个「孤儿分支 artifacts」（每次 force-push
+# 单提交、无父提交、无历史），并作为 Release asset 上传。任何直接 push 到 main 的做法
+# 都会让仓库体积不可逆地膨胀。
+on:
+  workflow_dispatch:
+    inputs:
+      server_ip:
+        description: '自建服务器公网 IP（纯 IP，不要带 http:// 或端口）'
+        required: true
+        type: string
+      server_port:
+        description: '自建服务器 TCP 端口'
+        required: true
+        default: '10443'
+        type: string
+      tdesktop_ref:
+        description: 'TDesktop 提交 SHA（默认锁定版本，改版本前请复核补丁上下文）'
+        required: true
+        default: '2600e13c7f1cd7d6afdc4bc3d2b04810f3d57662'
+        type: string
+      build_target:
+        description: '构建目标（当前仅 linux 由 Docker 自动构建）'
+        required: true
+        default: 'linux'
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: tdesktop-build-${{ inputs.server_ip }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      SERVER_IP: ${{ inputs.server_ip }}
+      SERVER_PORT: ${{ inputs.server_port }}
+      TD_REF: ${{ inputs.tdesktop_ref }}
+      BUILD_TARGET: ${{ inputs.build_target }}
+      # 没有配置 secrets 时回退到 Telegram 官方测试凭据（17349）。
+      API_ID: ${{ secrets.TELEGRAM_API_ID || '17349' }}
+      API_HASH: ${{ secrets.TELEGRAM_API_HASH || '344583e45741c457fe1862106095a5eb' }}
+      # 必须和服务端 RSA_PRIVATE_KEY 配对，否则握手阶段客户端会报找不到公钥。
+      RSA_PEM: ${{ secrets.RSA_PUBLIC_KEY_PEM }}
+    steps:
+      - name: Checkout this repo
+        uses: actions/checkout@v4
+
+      - name: Validate inputs and clone pinned TDesktop with submodules
+        run: |
+          set -euo pipefail
+          if [[ ! "$SERVER_IP" =~ ^[0-9A-Fa-f:.]{1,45}$ ]]; then
+            echo "server_ip 必须是纯 IPv4/IPv6 字面量"; exit 1
+          fi
+          if [[ ! "$SERVER_PORT" =~ ^[0-9]{1,5}$ ]] || [ "$SERVER_PORT" -lt 1 ] || [ "$SERVER_PORT" -gt 65535 ]; then
+            echo "server_port 非法"; exit 1
+          fi
+          if [ "$BUILD_TARGET" != "linux" ]; then
+            echo "⚠️ 当前工作流只自动化 linux(Docker) 构建；$BUILD_TARGET 请按 client/build.sh 手工处理。"
+          fi
+          echo "Cloning TDesktop @ $TD_REF"
+          git clone --recurse-submodules https://github.com/telegramdesktop/tdesktop.git tdesktop
+          cd tdesktop
+          git checkout --detach "$TD_REF"
+          git submodule update --init --recursive
+
+      - name: Patch DC options and RSA keys (embedded python, no extra files)
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os
+          import re
+          import sys
+
+          path = os.path.join('tdesktop', 'Telegram', 'SourceFiles', 'mtproto',
+                              'mtproto_dc_options.cpp')
+          ip = os.environ['SERVER_IP'].strip()
+          port = os.environ['SERVER_PORT'].strip()
+          pem = os.environ.get('RSA_PEM', '').strip()
+
+          if not re.fullmatch(r'[0-9A-Fa-f:.]{1,45}', ip):
+              sys.exit('SERVER_IP must be a bare IPv4/IPv6 literal')
+          if not re.fullmatch(r'[0-9]{1,5}', port) or not 1 <= int(port) <= 65535:
+              sys.exit('SERVER_PORT out of range')
+          if 'BEGIN RSA PUBLIC KEY' not in pem:
+              sys.exit('RSA_PUBLIC_KEY_PEM secret missing or not PKCS#1 RSA PUBLIC KEY')
+
+          with open(path, encoding='utf-8') as f:
+              src = f.read()
+
+          def replace_initializer(text, name, body):
+              """Replace the whole { ... } initializer of a named C++ array."""
+              m = re.search(r'\b' + re.escape(name) + r'\b[^;{}]*\{', text)
+              if not m:
+                  sys.exit('cannot locate initializer of ' + name)
+              start = m.end() - 1
+              depth = 0
+              for i in range(start, len(text)):
+                  if text[i] == '{':
+                      depth += 1
+                  elif text[i] == '}':
+                      depth -= 1
+                      if depth == 0:
+                          return text[:start] + body + text[i + 1:]
+              sys.exit('unbalanced braces in initializer of ' + name)
+
+          # 1) 生产 DC 与测试 DC 都指向自建服务器，只保留一个 DC(1)。
+          dc_body = '{\n\t{ 1, "' + ip + '", ' + port + ' },\n}'
+          src = replace_initializer(src, 'kBuiltInDcs', dc_body)
+          src = replace_initializer(src, 'kBuiltInDcsTest', dc_body)
+
+          # 2) 去掉 constructFromBuiltIn() 中把官方 IPv6 DC 加入列表的循环，
+          #    防止客户端绕过我们改过的 IPv4 数组去连 2001:0b28:... 官方节点。
+          pattern = re.compile(r'\tconst auto listv6 = isTestMode\(\).*?\n\t\}\n', re.S)
+          src, count = pattern.subn('', src, count=1)
+          if count != 1:
+              sys.exit('IPv6 built-in loop not found (upstream layout changed?)')
+
+          # 3) 把 PEM 转成 TDesktop 源码里的 C 字符串拼接风格。
+          #    结果形如：{ "\
+          #    -----BEGIN RSA PUBLIC KEY-----\n\
+          #    ...\n\
+          #    -----END RSA PUBLIC KEY-----" };
+          lines = [line.strip() for line in pem.splitlines() if line.strip()]
+          literal = '"\\'
+          for i, line in enumerate(lines):
+              literal += '\\\n' + line + ('\\n' if i < len(lines) - 1 else '')
+          literal += '"'
+          key_body = '{ ' + literal + ' }'
+          src = replace_initializer(src, 'kPublicRSAKeys', key_body)
+          src = replace_initializer(src, 'kTestPublicRSAKeys', key_body)
+
+          with open(path, 'w', encoding='utf-8', newline='\n') as f:
+              f.write(src)
+          print('patched ' + path)
+          print('DC = ' + ip + ':' + port)
+          PY
+
+          echo "--- patched excerpt ---"
+          sed -n '25,70p' tdesktop/Telegram/SourceFiles/mtproto/mtproto_dc_options.cpp
+
+      - name: Build TDesktop in Docker (centos_env)
+        run: |
+          set -euo pipefail
+          IMAGE="ghcr.io/telegramdesktop/tdesktop/centos_env:latest"
+          if ! docker image inspect "$IMAGE" >/dev/null 2>&1; then
+            echo "Pulling $IMAGE ..."
+            if ! docker pull "$IMAGE"; then
+              echo "Pull failed -> fallback: Telegram/build/prepare/linux.sh"
+              # prepare 脚本内部调用 poetry；runner 上可能没有，先补上。
+              if ! command -v poetry >/dev/null 2>&1; then
+                python3 -m pip install --user poetry
+                export PATH="$HOME/.local/bin:$PATH"
+              fi
+              ./tdesktop/Telegram/build/prepare/linux.sh
+              IMAGE="tdesktop:centos_env"
+            fi
+          fi
+          docker run --rm \
+            -v "$PWD/tdesktop:/src" \
+            -w /src \
+            -e TDESKTOP_API_ID="$API_ID" \
+            -e TDESKTOP_API_HASH="$API_HASH" \
+            "$IMAGE" \
+            ./Telegram/build/docker/centos_env/build.sh \
+              -DTDESKTOP_API_ID="$API_ID" \
+              -DTDESKTOP_API_HASH="$API_HASH" \
+              -D DESKTOP_APP_DISABLE_AUTOUPDATE=ON \
+              -D DESKTOP_APP_DISABLE_CRASH_REPORTS=ON
+
+      - name: Package binaries
+        id: package
+        run: |
+          set -euo pipefail
+          OUT="tdesktop/out/Release"
+          if [ ! -x "$OUT/Telegram" ]; then
+            echo "Telegram binary not found in $OUT"; find tdesktop/out -maxdepth 2 -type f | head -50; exit 1
+          fi
+          files="Telegram"
+          if [ -e "$OUT/Updater" ]; then files="$files Updater"; fi
+          NAME="tdesktop-${BUILD_TARGET}-${TD_REF:0:12}.tar.xz"
+          tar -cJf "$NAME" -C "$OUT" $files
+          echo "asset=$NAME" >> "$GITHUB_OUTPUT"
+          echo "Packaged $NAME"; du -h "$NAME"
+
+      # ⚠️ 只写一个孤儿分支：临时仓库无父提交，force-push 单提交，历史不会增长。
+      - name: Publish artifact to orphan branch 'artifacts'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ASSET: ${{ steps.package.outputs.asset }}
+        run: |
+          set -euo pipefail
+          tmp="$(mktemp -d)"
+          cp "$ASSET" "$tmp/"
+          cd "$tmp"
+          git init -q -b artifacts
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f "$ASSET"
+          git commit -q -m "Patched TDesktop ${TD_REF} for ${SERVER_IP}:${SERVER_PORT}"
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push --force origin HEAD:refs/heads/artifacts
+          cd -
+          rm -rf "$tmp"
+
+      - name: Upload as GitHub Release asset
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: tdesktop-patched-${{ github.run_id }}
+          name: Patched TDesktop (${{ inputs.build_target }}) - run ${{ github.run_number }}
+          body: |
+            自建服务器：${{ inputs.server_ip }}:${{ inputs.server_port }}
+            TDesktop：${{ inputs.tdesktop_ref }}
+            ⚠️ 二进制产物，请勿下载后提交进任何源码仓库。
+          files: ${{ steps.package.outputs.asset }}
+          generate_release_notes: false

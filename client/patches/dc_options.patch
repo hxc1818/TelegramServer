@@ -1,0 +1,141 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+mtproto_dc_options.cpp 补丁（针对锁定的 TDesktop SHA
+2600e13c7f1cd7d6afdc4bc3d2b04810f3d57662）。
+
+本文件既是「文档化补丁」也是可直接运行 python3 的替换脚本。
+CI (.github/workflows/tdesktop.yml) 内嵌了等价的 python here-doc；
+本地可用 ``python3 client/patches/dc_options.patch --ip <IP> --port <PORT> --pem <FILE>``。
+
+================================ 改动清单 ================================
+文件：Telegram/SourceFiles/mtproto/mtproto_dc_options.cpp
+
+1) kBuiltInDcs[]（生产 DC 列表）
+   改前：
+       const BuiltInDc kBuiltInDcs[] = {
+           { 1, "149.154.175.50", 443 },
+           ... 共 6 条官方 IP ...
+       };
+   改后：
+       const BuiltInDc kBuiltInDcs[] = {
+           { 1, "<SERVER_IP>", <SERVER_PORT> },
+       };
+
+2) kBuiltInDcsTest[]（测试 DC 列表）
+   改前：
+       const BuiltInDc kBuiltInDcsTest[] = {
+           { 1, "149.154.175.10", 443 }, ...
+       };
+   改后：
+       const BuiltInDc kBuiltInDcsTest[] = {
+           { 1, "<SERVER_IP>", <SERVER_PORT> },
+       };
+
+3) constructFromBuiltIn() 中的 IPv6 循环
+   删除整段 `const auto listv6 = isTestMode() ? ...`，
+   否则客户端仍会加入官方的 2001:0b28:... / 2001:067c:... IPv6 节点。
+   （kBuiltInDcsIPv6[] / kBuiltInDcsIPv6Test[] 保留但不再被使用。）
+
+4) kPublicRSAKeys[] 与 kTestPublicRSAKeys[]
+   改前（示例）：
+       const char *kPublicRSAKeys[] = { "\
+       -----BEGIN RSA PUBLIC KEY-----\n\
+       MIIBCgKCAQEA6Lsz...\n\
+       -----END RSA PUBLIC KEY-----" };
+   改后：同样的 C 字符串结构，但内容替换为自建服务端的 PKCS#1 公钥
+   （由 RSA_PRIVATE_KEY 经 `openssl rsa -RSAPublicKey_out` 得到）。
+
+⚠️ 指纹必须匹配：resPQ 中的 fingerprints 必须包含这里公钥的低 64 位 SHA1(TL(n)||TL(e))，
+   否则客户端在握手阶段报 "could not find a public key"。
+"""
+import argparse
+import os
+import re
+import sys
+
+DEFAULT_SOURCE = os.path.join(
+    '.', 'Telegram', 'SourceFiles', 'mtproto', 'mtproto_dc_options.cpp')
+
+
+def replace_initializer(text, name, body):
+    """把名为 name 的 C++ 数组的整个 { ... } 初始化块替换为 body。"""
+    match = re.search(r'\b' + re.escape(name) + r'\b[^;{}]*\{', text)
+    if not match:
+        raise SystemExit('找不到 ' + name + ' 的初始化块（上游代码结构可能已变化）')
+    start = match.end() - 1
+    depth = 0
+    for i in range(start, len(text)):
+        if text[i] == '{':
+            depth += 1
+        elif text[i] == '}':
+            depth -= 1
+            if depth == 0:
+                return text[:start] + body + text[i + 1:]
+    raise SystemExit(name + ' 的初始化块花括号不匹配')
+
+
+def cpp_string(pem):
+    """PEM -> TDesktop 风格的 C 字符串拼接字面量。"""
+    lines = [line.strip() for line in pem.strip().splitlines() if line.strip()]
+    if not lines:
+        raise SystemExit('PEM 为空')
+    result = '"\\'
+    for i, line in enumerate(lines):
+        result += '\\\n' + line + ('\\n' if i < len(lines) - 1 else '')
+    return result + '"'
+
+
+def patch(src, ip, port, pem):
+    if not re.fullmatch(r'[0-9A-Fa-f:.]{1,45}', ip):
+        raise SystemExit('IP 必须是纯 IPv4/IPv6 字面量')
+    if not re.fullmatch(r'\d{1,5}', str(port)) or not 1 <= int(port) <= 65535:
+        raise SystemExit('端口非法')
+    if 'BEGIN RSA PUBLIC KEY' not in pem:
+        raise SystemExit('PEM 必须是 PKCS#1 "BEGIN RSA PUBLIC KEY" 格式')
+
+    dc_body = '{\n\t{ 1, "' + ip + '", ' + str(port) + ' },\n}'
+    src = replace_initializer(src, 'kBuiltInDcs', dc_body)
+    src = replace_initializer(src, 'kBuiltInDcsTest', dc_body)
+
+    ipv6_loop = re.compile(r'\tconst auto listv6 = isTestMode\(\).*?\n\t\}\n', re.S)
+    src, count = ipv6_loop.subn('', src, count=1)
+    if count != 1:
+        raise SystemExit('未找到 IPv6 内置 DC 循环（请检查上游版本）')
+
+    key_body = '{ ' + cpp_string(pem) + ' }'
+    src = replace_initializer(src, 'kPublicRSAKeys', key_body)
+    src = replace_initializer(src, 'kTestPublicRSAKeys', key_body)
+    return src
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument('--source', default=DEFAULT_SOURCE, help='mtproto_dc_options.cpp 路径')
+    ap.add_argument('--ip', required=True, help='自建服务器公网 IP')
+    ap.add_argument('--port', default='10443', help='自建服务器 TCP 端口')
+    ap.add_argument('--pem', required=True, help='PKCS#1 公钥 PEM 文件路径')
+    ap.add_argument('--output', help='输出文件（默认原地写回）')
+    ap.add_argument('--check', action='store_true', help='只校验，不写文件')
+    args = ap.parse_args()
+
+    with open(args.pem, encoding='utf-8') as f:
+        pem = f.read()
+    with open(args.source, encoding='utf-8') as f:
+        original = f.read()
+
+    patched = patch(original, args.ip, args.port, pem)
+    if patched == original:
+        raise SystemExit('补丁没有任何改动，请检查输入')
+
+    if args.check:
+        print('OK: 补丁可应用')
+        return
+    target = args.output or args.source
+    with open(target, 'w', encoding='utf-8', newline='\n') as f:
+        f.write(patched)
+    print('patched -> ' + target)
+
+
+if __name__ == '__main__':
+    main()

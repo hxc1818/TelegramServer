@@ -1,0 +1,16 @@
+{
+  "name": "telegramserver",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "From-scratch Node.js MTProto 2.0 server for patched TDesktop",
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --test test/*.test.js",
+    "generate": "node src/tl/gen.js"
+  },
+  "dependencies": {}
+}

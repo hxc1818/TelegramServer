@@ -1,0 +1,54 @@
+name: Deploy
+
+# 服务端发布后自动更新 VPS；也可在 Actions 页面手动触发。
+# 注意：tdesktop.yml 也会创建 Release，但 tag 以 tdesktop-patched- 开头，
+# 下面的 if 条件会跳过它，避免构建客户端时误部署服务端。
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.event.release.tag_name, 'v')
+    steps:
+      - name: Pull and restart via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          PORT: ${{ vars.HEALTH_PORT || '10443' }}
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.VPS_SSH_PORT || 22 }}
+          envs: PORT
+          script: |
+            set -e
+            cd "${{ secrets.VPS_DEPLOY_DIR || '/opt/telegramserver' }}"
+            echo "== pulling latest image =="
+            # 私有仓库时取消注释（需要 GHCR_TOKEN secret）：
+            # echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+            docker compose pull
+            docker compose up -d
+            sleep 3
+            docker compose ps
+            echo "== health check on port $PORT =="
+            ok=0
+            for i in $(seq 1 10); do
+              if command -v nc >/dev/null 2>&1; then
+                nc -z -w 2 127.0.0.1 "$PORT" && { ok=1; break; }
+              else
+                (echo > "/dev/tcp/127.0.0.1/$PORT") >/dev/null 2>&1 && { ok=1; break; }
+              fi
+              sleep 3
+            done
+            if [ "$ok" -ne 1 ]; then
+              echo "health check FAILED on port $PORT"
+              docker compose logs --tail=100
+              exit 1
+            fi
+            echo "health check OK"

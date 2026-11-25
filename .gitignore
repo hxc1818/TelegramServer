@@ -1,0 +1,29 @@
+# 依赖（本项目当前为零依赖）
+node_modules/
+
+# 运行时数据 / 私钥（绝不能提交）
+data/
+*.pem
+*.key
+
+# 本地环境变量
+.env
+.env.*
+!.env.example
+
+# 日志与调试产物
+*.log
+DebugLogs/
+npm-debug.log*
+
+# 客户端构建中间产物与二进制（大文件，禁止进 git）
+out/
+tdesktop/
+*.tar.xz
+*.tar.gz
+
+# 编辑器 / 系统
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

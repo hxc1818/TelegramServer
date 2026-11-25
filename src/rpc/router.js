@@ -9,6 +9,9 @@ import * as users from './handlers/users.js';
 import * as messages from './handlers/messages.js';
 import * as updates from './handlers/updates.js';
 import * as misc from './handlers/misc.js';
+import * as media from './handlers/media.js';
+import * as extra from './handlers/messaging-extra.js';
+import * as groups from './handlers/groups.js';
 
 export const METHOD_IDS = Object.freeze({
   invokeWithLayer: 0xda9b0d0d,
@@ -32,11 +35,28 @@ export const METHOD_IDS = Object.freeze({
   'updates.getState': 0xedd4882a,
   'updates.getDifference': 0x19c2f763,
   'upload.saveFilePart': 0xb304a621,
+  'upload.saveBigFilePart': 0xde7b673d,
   'upload.getFile': 0xbe5335be,
+  'messages.sendMedia': 0x330e77f,
+  'messages.getDocumentByHash': 0xb1f2061f,
+  'messages.getWebPage': 0x8d9692a3,
   'account.updateStatus': 0x6628562c,
   'langpack.getLangPack': 0xf2f2330a,
   ping: 0x7abe77ec,
   pingDelayDisconnect: 0xf3427b8c,
+  ...extra.METHOD_IDS,
+  'messages.createChat': 0x92ceddd4,
+  'messages.addChatUser': 0xcbc6d107,
+  'messages.getChats': 0x49e9528f,
+  'messages.getFullChat': 0xaeb00b34,
+  'messages.editChatTitle': 0x73783ffd,
+  'messages.getMessages': 0x63c66506,
+  'channels.createChannel': 0x91006707,
+  'channels.inviteToChannel': 0xc9e33d54,
+  'channels.getChannels': 0xa7f6bbb,
+  'channels.getFullChannel': 0x8736a09,
+  'channels.editTitle': 0x566decd0,
+  'channels.getMessages': 0xad8c9a23,
 });
 
 const ID_TO_METHOD = Object.freeze(Object.fromEntries(
@@ -72,12 +92,41 @@ const HANDLERS = Object.freeze({
   'messages.getStickers': misc.getStickers,
   'updates.getState': updates.getState,
   'updates.getDifference': updates.getDifference,
-  'upload.saveFilePart': misc.saveFilePart,
-  'upload.getFile': misc.getFile,
+  'upload.saveFilePart': media.saveFilePart,
+  'upload.saveBigFilePart': media.saveBigFilePart,
+  'upload.getFile': media.getFile,
+  'messages.sendMedia': media.sendMedia,
+  'messages.getDocumentByHash': media.getDocumentByHash,
+  'messages.getWebPage': media.getWebPage,
   'account.updateStatus': misc.updateStatus,
   'langpack.getLangPack': misc.getLangPack,
   ping: misc.ping,
   pingDelayDisconnect: misc.pingDelayDisconnect,
+  'messages.editMessage': extra.editMessage,
+  'messages.deleteMessages': extra.deleteMessages,
+  'messages.forwardMessages': extra.forwardMessages,
+  'messages.search': extra.search,
+  'messages.searchGlobal': extra.searchGlobal,
+  'messages.saveDraft': extra.saveDraft,
+  'messages.getAllDrafts': extra.getAllDrafts,
+  'messages.clearAllDrafts': extra.clearAllDrafts,
+  'messages.readMentions': extra.readMentions,
+  'messages.readReactions': extra.readReactions,
+  'messages.sendReaction': extra.sendReaction,
+  'messages.sendScreenshotNotification': extra.sendScreenshotNotification,
+  'updates.getChannelDifference': extra.getChannelDifference,
+  'messages.createChat': groups.createChat,
+  'messages.addChatUser': groups.addChatUser,
+  'messages.getChats': groups.getChats,
+  'messages.getFullChat': groups.getFullChat,
+  'messages.editChatTitle': groups.editChatTitle,
+  'messages.getMessages': groups.getMessages,
+  'channels.createChannel': groups.createChannel,
+  'channels.inviteToChannel': groups.inviteToChannel,
+  'channels.getChannels': groups.getChannels,
+  'channels.getFullChannel': groups.getFullChannel,
+  'channels.editTitle': groups.editTitle,
+  'channels.getMessages': groups.getMessages,
 });
 
 const SAFE_FALLBACK = Object.freeze({

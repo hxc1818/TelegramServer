@@ -8,6 +8,9 @@ import { pathToFileURL } from 'node:url';
 import { TLBuffer } from './tl/buffer.js';
 import { loadConfig } from './config.js';
 import { Store } from './store/store.js';
+import { MediaStore } from './store/media.js';
+import { MessagingExtraStore } from './store/messaging-extra.js';
+import { GroupStore } from './store/groups.js';
 import { Router, methodNameOf } from './rpc/router.js';
 import * as C from './rpc/handlers/codecs.js';
 import { ObfuscatedSocket } from './transport/obfuscation.js';
@@ -66,6 +69,9 @@ export class TelegramServer {
     this.config = config || loadConfig();
     this.keys = keys || this.config.keys;
     this.store = store || new Store(this.config.dataDir, { dbDriver: this.config.dbDriver });
+    this.mediaStore = new MediaStore(this.config.dataDir);
+    this.messagingExtra = new MessagingExtraStore(this.config.dataDir);
+    this.groupStore = new GroupStore(this.config.dataDir);
     this.router = router || new Router({ store: this.store, keys: this.keys, config: this.config });
     this.authKeys = new Map(); // authKeyId (hex) -> authKey Buffer
     this.salts = new Map(); // authKeyId (hex) -> bigint salt
@@ -86,6 +92,9 @@ export class TelegramServer {
   close() {
     if (this.server) this.server.close();
     this.server = null;
+    this.mediaStore?.close();
+    this.messagingExtra?.close();
+    this.groupStore?.close();
     this.store.close();
   }
 
@@ -374,6 +383,9 @@ export class TelegramServer {
       authKeyId: state.authKeyId,
       msgId,
       server: this,
+      mediaStore: this.mediaStore,
+      messagingExtra: this.messagingExtra,
+      groupStore: this.groupStore,
       config: this.config,
     };
     const result = this.router.handle(name, new TLBuffer(body.subarray(4)), ctx);

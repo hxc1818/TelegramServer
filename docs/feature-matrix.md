@@ -56,6 +56,11 @@
 | Stories | ✅ | `sendStory` / `getStoriesByID` / `getPeerStories` / `readStories` / `getStoryViewsList` |
 | 设备注册与推送设置 | 🚧 | token/偏好持久化，**无** APNs/FCM 实际投递 |
 | 跨设备同步、已读回执全量语义 | 🚧 | 部分实现 |
+| 多 DC / CDN | ✅ | `DcRegistry` 多 DC 配置、`cdnConfig` 公钥、跨 DC 授权迁移、文件 DC 路由 |
+| 支付 / Stars / Premium | ✅ | `payments.*` 21 个方法、账单/余额/礼物/Boost 持久化 |
+| 秘密聊天真实 E2E | ✅ | DH 密钥交换、指纹校验、IGE 载荷加解密（RPC 由 `secret-e2e` 接管） |
+| 通话媒体中继 / 群组通话 | 🚧 | UDP RTP 不透明中继 + 12 个群组通话 RPC；无 SRTP/ICE/STUN/TURN |
+| 推送投递 | 🚧 | HMAC webhook 真实 HTTP 投递 + 重试队列；APNs/FCM 需用户提供凭据 |
 
 ## 工程能力
 
@@ -69,6 +74,7 @@
 
 ## 结论
 
-“能登录并发文本消息” ≠ “Telegram 全功能可用”。
-如果你需要完整的群聊、媒体、搜索、2FA、通话等能力，应当使用官方服务端实现或成熟开源服务端；
-本项目的价值在于**从零理解 MTProto 2.0 与 TDesktop 的对接过程**。
+当前实现已覆盖 195 个 RPC（登录、消息、群聊/频道、媒体、贴纸、机器人、2FA、Stories、
+支付/Stars/Premium、多 DC/CDN、秘密聊天真实 E2E、群组通话信令与 UDP 中继、推送 webhook 投递）。
+仍未完成：SRTP/ICE/STUN/TURN 媒体加密与协商、APNs/FCM 官方凭据投递、Payments 真实收单渠道、
+Premium/Star 的真实账务结算、多 DC 跨机房部署编排。这些需要外部基础设施与凭据，属于明确的后续范围。

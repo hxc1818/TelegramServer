@@ -21,6 +21,10 @@ import * as twoFA from './handlers/twofa.js';
 import * as secret from './handlers/secret.js';
 import * as callsHandlers from './handlers/calls.js';
 import * as storiesHandlers from './handlers/stories.js';
+import * as dcHandlers from './handlers/dc.js';
+import * as paymentsHandlers from './handlers/payments.js';
+import * as callsExtra from './handlers/calls-extra.js';
+import * as secretE2E from './handlers/secret-e2e.js';
 
 export const METHOD_IDS = Object.freeze({
   invokeWithLayer: 0xda9b0d0d,
@@ -78,6 +82,9 @@ export const METHOD_IDS = Object.freeze({
   ...secret.METHOD_IDS,
   ...callsHandlers.METHOD_IDS,
   ...storiesHandlers.METHOD_IDS,
+  ...dcHandlers.METHOD_IDS,
+  ...paymentsHandlers.METHOD_IDS,
+  ...callsExtra.METHOD_IDS,
 });
 
 const ID_TO_METHOD = Object.freeze(Object.fromEntries(
@@ -217,14 +224,14 @@ const HANDLERS = Object.freeze({
   'auth.exportLoginToken': twoFA.exportLoginToken,
   'auth.importLoginToken': twoFA.importLoginToken,
   'auth.acceptLoginToken': twoFA.acceptLoginToken,
-  'messages.requestEncryption': secret.requestEncryption,
-  'messages.acceptEncryption': secret.acceptEncryption,
+  'messages.requestEncryption': secretE2E.requestEncryption,
+  'messages.acceptEncryption': secretE2E.acceptEncryption,
   'messages.discardEncryption': secret.discardEncryption,
   'messages.setEncryptedTyping': secret.setEncryptedTyping,
-  'messages.readEncryptedHistory': secret.readEncryptedHistory,
-  'messages.sendEncrypted': secret.sendEncrypted,
-  'messages.sendEncryptedFile': secret.sendEncryptedFile,
-  'messages.sendEncryptedService': secret.sendEncryptedService,
+  'messages.readEncryptedHistory': secretE2E.readEncryptedHistory,
+  'messages.sendEncrypted': secretE2E.sendEncrypted,
+  'messages.sendEncryptedFile': secretE2E.sendEncryptedFile,
+  'messages.sendEncryptedService': secretE2E.sendEncryptedService,
   'messages.reportEncryptedSpam': secret.reportEncryptedSpam,
   'messages.uploadEncryptedFile': secret.uploadEncryptedFile,
   'phone.getCallConfig': callsHandlers.getCallConfig,
@@ -252,6 +259,45 @@ const HANDLERS = Object.freeze({
   'account.unregisterDevice': storiesHandlers.unregisterDevice,
   'account.getPushSettings': storiesHandlers.getPushSettings,
   'account.updatePushSettings': storiesHandlers.updatePushSettings,
+  'help.getConfig': dcHandlers.getConfig,
+  'help.getNearestDc': dcHandlers.getNearestDc,
+  'help.getCdnConfig': dcHandlers.getCdnConfig,
+  'auth.exportAuthorization': dcHandlers.exportAuthorization,
+  'auth.importAuthorization': dcHandlers.importAuthorization,
+  'upload.getFile': dcHandlers.getFile,
+  'payments.getPaymentForm': paymentsHandlers.getPaymentForm,
+  'payments.getPaymentReceipt': paymentsHandlers.getPaymentReceipt,
+  'payments.validateRequestedInfo': paymentsHandlers.validateRequestedInfo,
+  'payments.sendPaymentForm': paymentsHandlers.sendPaymentForm,
+  'payments.getSavedInfo': paymentsHandlers.getSavedInfo,
+  'payments.getBankCardData': paymentsHandlers.getBankCardData,
+  'payments.exportInvoice': paymentsHandlers.exportInvoice,
+  'payments.getStarsStatus': paymentsHandlers.getStarsStatus,
+  'payments.sendStarsForm': paymentsHandlers.sendStarsForm,
+  'payments.getStarsTransactions': paymentsHandlers.getStarsTransactions,
+  'payments.getStarGifts': paymentsHandlers.getStarGifts,
+  'payments.getSavedStarGifts': paymentsHandlers.getSavedStarGifts,
+  'payments.getStarsGiftOptions': paymentsHandlers.getStarsGiftOptions,
+  'payments.getStarsTopupOptions': paymentsHandlers.getStarsTopupOptions,
+  'payments.getPremiumGiftCodeOptions': paymentsHandlers.getPremiumGiftCodeOptions,
+  'payments.getCurrencyRates': paymentsHandlers.getCurrencyRates,
+  'premium.getBoostsList': paymentsHandlers.getBoostsList,
+  'premium.getMyBoosts': paymentsHandlers.getMyBoosts,
+  'premium.applyBoost': paymentsHandlers.applyBoost,
+  'premium.getBoostsStatus': paymentsHandlers.getBoostsStatus,
+  'premium.getUserBoosts': paymentsHandlers.getUserBoosts,
+  'phone.createGroupCall': callsExtra.createGroupCall,
+  'phone.joinGroupCall': callsExtra.joinGroupCall,
+  'phone.leaveGroupCall': callsExtra.leaveGroupCall,
+  'phone.getGroupCall': callsExtra.getGroupCall,
+  'phone.getGroupParticipants': callsExtra.getGroupParticipants,
+  'phone.inviteToGroupCall': callsExtra.inviteToGroupCall,
+  'phone.discardGroupCall': callsExtra.discardGroupCall,
+  'phone.toggleGroupCallSettings': callsExtra.toggleGroupCallSettings,
+  'phone.editGroupCallParticipant': callsExtra.editGroupCallParticipant,
+  'phone.editGroupCallTitle': callsExtra.editGroupCallTitle,
+  'phone.getGroupCallJoinAs': callsExtra.getGroupCallJoinAs,
+  'phone.sendSignalingData': callsExtra.sendSignalingData,
 });
 
 const SAFE_FALLBACK = Object.freeze({

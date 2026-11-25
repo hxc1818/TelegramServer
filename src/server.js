@@ -20,6 +20,11 @@ import { TwoFAStore } from './store/twofa.js';
 import { SecretStore } from './store/secret.js';
 import { CallStore } from './store/calls.js';
 import { StoryStore } from './store/stories.js';
+import { DcRegistry } from './store/dc.js';
+import { PaymentStore } from './store/payments.js';
+import { PushStore } from './store/push.js';
+import { PushDispatcher } from './push/dispatcher.js';
+import { CallRelay } from './relay/call.js';
 import { Router, methodNameOf } from './rpc/router.js';
 import * as C from './rpc/handlers/codecs.js';
 import { ObfuscatedSocket } from './transport/obfuscation.js';
@@ -90,6 +95,14 @@ export class TelegramServer {
     this.secretStore = new SecretStore(this.config.dataDir);
     this.callStore = new CallStore(this.config.dataDir);
     this.storyStore = new StoryStore(this.config.dataDir);
+    this.dcRegistry = new DcRegistry(this.config.dataDir, {
+      dcs: [{ id: this.config.serverId || 1, host: this.config.publicIp || '127.0.0.1', port: this.config.listenPort || 10443 }],
+      keys: this.keys,
+    });
+    this.paymentStore = new PaymentStore(this.config.dataDir);
+    this.pushStore = new PushStore(this.config.dataDir);
+    this.push = new PushDispatcher({ store: this.pushStore });
+    this.callRelay = new CallRelay({ callStore: this.callStore });
     this.router = router || new Router({ store: this.store, keys: this.keys, config: this.config });
     this.authKeys = new Map(); // authKeyId (hex) -> authKey Buffer
     this.salts = new Map(); // authKeyId (hex) -> bigint salt
@@ -122,6 +135,11 @@ export class TelegramServer {
     this.secretStore?.close();
     this.callStore?.close();
     this.storyStore?.close();
+    this.dcRegistry?.close?.();
+    this.paymentStore?.close?.();
+    this.pushStore?.close?.();
+    this.push?.close?.();
+    this.callRelay?.close?.();
     this.store.close();
   }
 
@@ -422,6 +440,11 @@ export class TelegramServer {
       secretStore: this.secretStore,
       callStore: this.callStore,
       storyStore: this.storyStore,
+      dcRegistry: this.dcRegistry,
+      paymentStore: this.paymentStore,
+      pushStore: this.pushStore,
+      pushDispatcher: this.push,
+      callRelay: this.callRelay,
       config: this.config,
     };
     const result = this.router.handle(name, new TLBuffer(body.subarray(4)), ctx);
@@ -431,6 +454,14 @@ export class TelegramServer {
       msgId: newServerMsgId(),
       seqNo: this.nextSeq(true, state),
     }, state, codec);
+
+    if (name === 'messages.sendMessage' && this.push) {
+      this.push.onNewMessage({
+        fromId: ctx.userId || 0,
+        peerKey: `user:${ctx.userId || 0}`,
+        text: '',
+      }).catch((err) => console.error('[push] dispatch failed', err.message));
+    }
   }
 
   sendEncrypted(body, opts, state, codec) {

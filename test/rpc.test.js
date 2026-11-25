@@ -8,6 +8,7 @@ import { TLBuffer } from '../src/tl/buffer.js';
 import { Store } from '../src/store/store.js';
 import { Router, methodNameOf, METHOD_IDS } from '../src/rpc/router.js';
 import { ID } from '../src/rpc/handlers/codecs.js';
+import { DcRegistry } from '../src/store/dc.js';
 
 function tempDir() {
   const dir = path.join(os.tmpdir(), `telegramserver-rpc-${process.pid}-${Math.random().toString(36).slice(2)}`);
@@ -86,11 +87,15 @@ test('store JSON fallback offers the same API', () => {
 test('router unwraps invokeWithLayer/initConnection and returns Config#cc1a241e', () => {
   const dir = tempDir();
   const { store, router } = makeRouter(dir);
+  // Share one DcRegistry across all calls so the SQLite handle can be closed
+  // before the temporary directory is removed (otherwise Windows reports EBUSY).
+  const dcRegistry = new DcRegistry(dir, { dcs: [{ id: 1, host: '127.0.0.1', port: 10443 }] });
+  const ctx = { dcRegistry };
   try {
-    const result = router.handle('help.getConfig', {});
+    const result = router.handle('help.getConfig', {}, ctx);
     assert.equal(result.readUInt32LE(0), 0xcc1a241e);
 
-    const byId = router.handle(METHOD_IDS['help.getConfig'], new TLBuffer(Buffer.alloc(0)), {});
+    const byId = router.handle(METHOD_IDS['help.getConfig'], new TLBuffer(Buffer.alloc(0)), ctx);
     assert.equal(byId.readUInt32LE(0), 0xcc1a241e);
     assert.equal(methodNameOf(0xda9b0d0d), 'invokeWithLayer');
     assert.equal(router.supports('help.getConfig'), true);
@@ -101,9 +106,10 @@ test('router unwraps invokeWithLayer/initConnection and returns Config#cc1a241e'
     b.putUint(0xc1cd5ea9).putUint(0).putInt(17349);
     for (const s of ['desktop', 'linux', '1.0', 'en', '', 'en']) b.putString(s);
     b.putUint(0xc4f9186b);
-    const wrapped = router.handle('invokeWithLayer', new TLBuffer(b.buffer.subarray(4)), {});
+    const wrapped = router.handle('invokeWithLayer', new TLBuffer(b.buffer.subarray(4)), ctx);
     assert.equal(wrapped.readUInt32LE(0), 0xcc1a241e);
   } finally {
+    dcRegistry.close?.();
     store.close();
     fs.rmSync(dir, { recursive: true, force: true });
   }

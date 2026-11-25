@@ -5,8 +5,9 @@
 > **⛔ 范围外**（本项目不追求与 Telegram 云端完全等价）
 
 本项目是从零实现的 MTProto 2.0 服务端，目标是持续对齐 TDesktop 可感知的功能
-（登录、会话、消息、群聊/频道、媒体、消息操作）。**不是** Telegram 服务器的逐行克隆；
-秘密聊天、通话、推送、多 DC/CDN、机器人与支付等仍属后续迭代范围。状态以代码为准。
+（登录、会话、消息、群聊/频道、媒体、贴纸、机器人、2FA、Stories 等）。
+**不是** Telegram 服务器的逐行克隆；多 DC/CDN、支付/Premium、真实 E2E 与通话媒体转发
+属于明确的后续范围。状态以代码为准。
 
 ## 连接与会话
 
@@ -50,8 +51,11 @@
 | 定时消息 | ✅ | `getScheduledMessages` / `sendScheduledMessages` / `deleteScheduledMessages` |
 | `help.*` / `langpack.*` 启动期 RPC | ✅ | CDN 配置、邀请文本、支持、条款、国家列表、语言包 |
 | 投票 | ⛔ | 未实现 |
-| 秘密聊天（E2E）、语音/视频通话 | ⛔ | 范围外 |
-| 跨设备同步、已读回执全量语义、通知推送 | ⛔ | 范围外 |
+| 秘密聊天 RPC / 数据层 | 🚧 | `requestEncryption` / `acceptEncryption` / `sendEncrypted` 等；**不做** DH 密钥交换与载荷加解密 |
+| 语音/视频通话信令 | 🚧 | `phone.requestCall` / `acceptCall` / `confirmCall` / `sendSignalingData`；**无** RTP/媒体转发 |
+| Stories | ✅ | `sendStory` / `getStoriesByID` / `getPeerStories` / `readStories` / `getStoryViewsList` |
+| 设备注册与推送设置 | 🚧 | token/偏好持久化，**无** APNs/FCM 实际投递 |
+| 跨设备同步、已读回执全量语义 | 🚧 | 部分实现 |
 
 ## 工程能力
 

@@ -18,6 +18,9 @@ import * as stickersHandlers from './handlers/stickers.js';
 import * as botsHandlers from './handlers/bots.js';
 import * as helpExtra from './handlers/help-extra.js';
 import * as twoFA from './handlers/twofa.js';
+import * as secret from './handlers/secret.js';
+import * as callsHandlers from './handlers/calls.js';
+import * as storiesHandlers from './handlers/stories.js';
 
 export const METHOD_IDS = Object.freeze({
   invokeWithLayer: 0xda9b0d0d,
@@ -72,6 +75,9 @@ export const METHOD_IDS = Object.freeze({
   ...botsHandlers.METHOD_IDS,
   ...helpExtra.METHOD_IDS,
   ...twoFA.METHOD_IDS,
+  ...secret.METHOD_IDS,
+  ...callsHandlers.METHOD_IDS,
+  ...storiesHandlers.METHOD_IDS,
 });
 
 const ID_TO_METHOD = Object.freeze(Object.fromEntries(
@@ -211,6 +217,41 @@ const HANDLERS = Object.freeze({
   'auth.exportLoginToken': twoFA.exportLoginToken,
   'auth.importLoginToken': twoFA.importLoginToken,
   'auth.acceptLoginToken': twoFA.acceptLoginToken,
+  'messages.requestEncryption': secret.requestEncryption,
+  'messages.acceptEncryption': secret.acceptEncryption,
+  'messages.discardEncryption': secret.discardEncryption,
+  'messages.setEncryptedTyping': secret.setEncryptedTyping,
+  'messages.readEncryptedHistory': secret.readEncryptedHistory,
+  'messages.sendEncrypted': secret.sendEncrypted,
+  'messages.sendEncryptedFile': secret.sendEncryptedFile,
+  'messages.sendEncryptedService': secret.sendEncryptedService,
+  'messages.reportEncryptedSpam': secret.reportEncryptedSpam,
+  'messages.uploadEncryptedFile': secret.uploadEncryptedFile,
+  'phone.getCallConfig': callsHandlers.getCallConfig,
+  'phone.requestCall': callsHandlers.requestCall,
+  'phone.acceptCall': callsHandlers.acceptCall,
+  'phone.confirmCall': callsHandlers.confirmCall,
+  'phone.receivedCall': callsHandlers.receivedCall,
+  'phone.discardCall': callsHandlers.discardCall,
+  'phone.setCallRating': callsHandlers.setCallRating,
+  'phone.saveCallDebug': callsHandlers.saveCallDebug,
+  'phone.sendSignalingData': callsHandlers.sendSignalingData,
+  'phone.saveCallLog': callsHandlers.saveCallLog,
+  'stories.canSendStory': storiesHandlers.canSendStory,
+  'stories.sendStory': storiesHandlers.sendStory,
+  'stories.deleteStories': storiesHandlers.deleteStories,
+  'stories.getPinnedStories': storiesHandlers.getPinnedStories,
+  'stories.getStoriesArchive': storiesHandlers.getStoriesArchive,
+  'stories.getStoriesByID': storiesHandlers.getStoriesByID,
+  'stories.getPeerStories': storiesHandlers.getPeerStories,
+  'stories.readStories': storiesHandlers.readStories,
+  'stories.incrementStoryViews': storiesHandlers.incrementStoryViews,
+  'stories.getStoryViewsList': storiesHandlers.getStoryViewsList,
+  'stories.getStoriesViews': storiesHandlers.getStoriesViews,
+  'account.registerDevice': storiesHandlers.registerDevice,
+  'account.unregisterDevice': storiesHandlers.unregisterDevice,
+  'account.getPushSettings': storiesHandlers.getPushSettings,
+  'account.updatePushSettings': storiesHandlers.updatePushSettings,
 });
 
 const SAFE_FALLBACK = Object.freeze({

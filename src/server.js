@@ -17,6 +17,9 @@ import { StickerStore } from './store/stickers.js';
 import { BotStore } from './store/bots.js';
 import { HelpStore } from './store/help.js';
 import { TwoFAStore } from './store/twofa.js';
+import { SecretStore } from './store/secret.js';
+import { CallStore } from './store/calls.js';
+import { StoryStore } from './store/stories.js';
 import { Router, methodNameOf } from './rpc/router.js';
 import * as C from './rpc/handlers/codecs.js';
 import { ObfuscatedSocket } from './transport/obfuscation.js';
@@ -84,6 +87,9 @@ export class TelegramServer {
     this.botStore = new BotStore(this.config.dataDir);
     this.helpStore = new HelpStore(this.config.dataDir);
     this.twofaStore = new TwoFAStore(this.config.dataDir);
+    this.secretStore = new SecretStore(this.config.dataDir);
+    this.callStore = new CallStore(this.config.dataDir);
+    this.storyStore = new StoryStore(this.config.dataDir);
     this.router = router || new Router({ store: this.store, keys: this.keys, config: this.config });
     this.authKeys = new Map(); // authKeyId (hex) -> authKey Buffer
     this.salts = new Map(); // authKeyId (hex) -> bigint salt
@@ -113,6 +119,9 @@ export class TelegramServer {
     this.botStore?.close();
     this.helpStore?.close();
     this.twofaStore?.close();
+    this.secretStore?.close();
+    this.callStore?.close();
+    this.storyStore?.close();
     this.store.close();
   }
 
@@ -410,6 +419,9 @@ export class TelegramServer {
       botStore: this.botStore,
       helpStore: this.helpStore,
       twofaStore: this.twofaStore,
+      secretStore: this.secretStore,
+      callStore: this.callStore,
+      storyStore: this.storyStore,
       config: this.config,
     };
     const result = this.router.handle(name, new TLBuffer(body.subarray(4)), ctx);

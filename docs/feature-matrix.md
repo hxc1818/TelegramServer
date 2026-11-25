@@ -26,8 +26,10 @@
 | 账号导出/导入授权（`auth.exportAuthorization` / `importAuthorization`） | ✅ | 基于简单 token |
 | 个人资料/用户名/隐私/通知设置/在线状态 | ✅ | `account.updateProfile` / `updateUsername` / `setPrivacy` / `getNotifySettings` / `updateStatus` |
 | 联系人增删、导入、屏蔽 | ✅ | `contacts.addContact` / `deleteContacts` / `importContacts` / `block` / `unblock` / `getBlocked` |
-| 二维码登录 / 2FA（SRP） | ⛔ | 未实现 |
-| 注册新账号、改手机号、删除账号 | ⛔ | 未实现 |
+| 2FA / SRP（`account.getPassword` / `auth.checkPassword`） | ✅ | 完整 SRP-6a 验证；无 b/p 记录时使用已记录的确定性回退 |
+| 二维码登录（`exportLoginToken` / `importLoginToken` / `acceptLoginToken`） | ✅ | 服务端 token 流程 |
+| 注册新账号 / 删除账号 | ✅ | `auth.signUp` / `account.deleteAccount` |
+| 改手机号 | ⛔ | 未实现 |
 
 ## 消息与会话
 
@@ -44,7 +46,10 @@
 | 媒体上传、图片/文件下载 | ✅ | `saveFilePart` / `saveBigFilePart` / `getFile` / `sendMedia`（document/photo） |
 | 贴纸 / GIF / 表情 | ✅ | `getStickers` / `getFeaturedStickers` / `getStickerSet` / `createStickerSet` / `getSavedGifs` / `saveGif`，自带默认贴纸包 |
 | 会话置顶 / 文件夹 | ✅ | `getPinnedDialogs` / `toggleDialogPin` / `editPeerFolders` / `getChatlistUpdates` |
-| 投票 / 内联机器人 | ⛔ | 未实现 |
+| 机器人 / 内联结果 / 游戏分数 | ✅ | `getInlineBotResults` / `sendInlineBotResult` / `bots.*` / `setGameScore` |
+| 定时消息 | ✅ | `getScheduledMessages` / `sendScheduledMessages` / `deleteScheduledMessages` |
+| `help.*` / `langpack.*` 启动期 RPC | ✅ | CDN 配置、邀请文本、支持、条款、国家列表、语言包 |
+| 投票 | ⛔ | 未实现 |
 | 秘密聊天（E2E）、语音/视频通话 | ⛔ | 范围外 |
 | 跨设备同步、已读回执全量语义、通知推送 | ⛔ | 范围外 |
 

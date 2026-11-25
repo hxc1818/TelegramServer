@@ -15,6 +15,9 @@ import * as groups from './handlers/groups.js';
 import * as accountHandlers from './handlers/account.js';
 import * as foldersHandlers from './handlers/folders.js';
 import * as stickersHandlers from './handlers/stickers.js';
+import * as botsHandlers from './handlers/bots.js';
+import * as helpExtra from './handlers/help-extra.js';
+import * as twoFA from './handlers/twofa.js';
 
 export const METHOD_IDS = Object.freeze({
   invokeWithLayer: 0xda9b0d0d,
@@ -66,6 +69,9 @@ export const METHOD_IDS = Object.freeze({
   'folders.editPeerFolders': 0x6847d0ab,
   'chatlists.getChatlistUpdates': 0x89419521,
   ...stickersHandlers.METHOD_ID,
+  ...botsHandlers.METHOD_IDS,
+  ...helpExtra.METHOD_IDS,
+  ...twoFA.METHOD_IDS,
 });
 
 const ID_TO_METHOD = Object.freeze(Object.fromEntries(
@@ -167,6 +173,44 @@ const HANDLERS = Object.freeze({
   'stickers.createStickerSet': stickersHandlers.createStickerSet,
   'stickers.addStickerToSet': stickersHandlers.addStickerToSet,
   'stickers.removeStickerFromSet': stickersHandlers.removeStickerFromSet,
+  'messages.getInlineBotResults': botsHandlers.getInlineBotResults,
+  'messages.sendInlineBotResult': botsHandlers.sendInlineBotResult,
+  'messages.setGameScore': botsHandlers.setGameScore,
+  'messages.getGameHighScores': botsHandlers.getGameHighScores,
+  'messages.getScheduledMessages': botsHandlers.getScheduledMessages,
+  'messages.sendScheduledMessages': botsHandlers.sendScheduledMessages,
+  'messages.deleteScheduledMessages': botsHandlers.deleteScheduledMessages,
+  'bots.getBotInfo': botsHandlers.getBotInfo,
+  'bots.setBotInfo': botsHandlers.setBotInfo,
+  'bots.canSendMessage': botsHandlers.canSendMessage,
+  'bots.checkUsername': botsHandlers.checkUsername,
+  'bots.getBotCommands': botsHandlers.getBotCommands,
+  'bots.setBotCommands': botsHandlers.setBotCommands,
+  'bots.getBotMenuButton': botsHandlers.getBotMenuButton,
+  'bots.getAdminedBots': botsHandlers.getAdminedBots,
+  'help.getCdnConfig': helpExtra.getCdnConfig,
+  'help.getInviteText': helpExtra.getInviteText,
+  'help.getSupport': helpExtra.getSupport,
+  'help.getTermsOfServiceUpdate': helpExtra.getTermsOfServiceUpdate,
+  'help.getCountriesList': helpExtra.getCountriesList,
+  'help.getAppUpdate': helpExtra.getAppUpdate,
+  'help.getPromoData': helpExtra.getPromoData,
+  'help.getPassportConfig': helpExtra.getPassportConfig,
+  'langpack.getLanguages': helpExtra.getLanguages,
+  'langpack.getLanguage': helpExtra.getLanguage,
+  'langpack.getStrings': helpExtra.getStrings,
+  'langpack.getDifference': helpExtra.getDifference,
+  'langpack.getLangPack': helpExtra.getLangPack,
+  'account.getPassword': twoFA.getPassword,
+  'account.updatePasswordSettings': twoFA.updatePasswordSettings,
+  'account.getPasswordSettings': twoFA.getPasswordSettings,
+  'account.deleteAccount': twoFA.deleteAccount,
+  'auth.checkPassword': twoFA.checkPassword,
+  'auth.resendCode': twoFA.resendCode,
+  'auth.signUp': twoFA.signUp,
+  'auth.exportLoginToken': twoFA.exportLoginToken,
+  'auth.importLoginToken': twoFA.importLoginToken,
+  'auth.acceptLoginToken': twoFA.acceptLoginToken,
 });
 
 const SAFE_FALLBACK = Object.freeze({

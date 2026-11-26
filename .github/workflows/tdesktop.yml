@@ -187,7 +187,10 @@ jobs:
           if [ ! -x "$OUT/Telegram" ]; then
             echo "Telegram binary not found in $OUT"; find tdesktop/out -maxdepth 2 -type f | head -50; exit 1
           fi
-          files="Telegram"
+          # TDesktop 运行时会读取工作目录下的 .tdesktop-endpoints，改这里即可
+          # 热切换服务器地址，无需重新编译。格式：dcId host port [tcpo_only]
+          printf '1 %s %s tcpo_only\n' "$SERVER_IP" "$SERVER_PORT" > "$OUT/.tdesktop-endpoints"
+          files="Telegram .tdesktop-endpoints"
           if [ -e "$OUT/Updater" ]; then files="$files Updater"; fi
           NAME="tdesktop-${BUILD_TARGET}-${TD_REF:0:12}.tar.xz"
           tar -cJf "$NAME" -C "$OUT" $files

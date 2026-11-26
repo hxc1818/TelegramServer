@@ -1,0 +1,6 @@
+{
+  "dcs": [
+    { "id": 1, "host": "127.0.0.1", "port": 10443, "tcpo_only": true }
+  ],
+  "this_dc": 1
+}

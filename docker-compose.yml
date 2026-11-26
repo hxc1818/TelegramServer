@@ -9,6 +9,8 @@ services:
     restart: unless-stopped
     ports:
       - "10443:10443"
+      # 管理接口仅本机可访问；远程管理请走 SSH 隧道，不要暴露到公网
+      - "127.0.0.1:18080:18080"
     environment:
       LISTEN_HOST: "0.0.0.0"
       LISTEN_PORT: "10443"
@@ -19,6 +21,9 @@ services:
       API_HASH: "${API_HASH:-344583e45741c457fe1862106095a5eb}"
       AUTH_CODE: "${AUTH_CODE:-123456}"
       LOG_TL: "${LOG_TL:-0}"
+      ADMIN_HOST: "0.0.0.0"
+      ADMIN_PORT: "18080"
+      ADMIN_TOKEN: "${ADMIN_TOKEN:-}"
       # PEM 字符串（PKCS#1）。Compose v2.24+ 支持 .env 中带引号的多行值。
       RSA_PRIVATE_KEY: "${RSA_PRIVATE_KEY:-}"
     volumes:

@@ -160,7 +160,34 @@ grep -iE "public key|fingerprint|decrypt|auth key" DebugLogs/mtp_*.txt
 | 补丁脚本报找不到数组 | TDesktop 上游版本变了，请改 `tdesktop_ref` 或更新补丁（两处同步） |
 | 鉴权被拒 | 客户端 `api_id` 与服务端 `API_ID` 不一致 |
 
-## 7. 安全与合规
+## 7. 服务器地址热更新（无需重新编译客户端）
+
+服务端地址不是写死的：`PUBLIC_IP` 决定 `help.getConfig` 返回的 DC 列表，
+`LISTEN_HOST` / `LISTEN_PORT` 决定监听地址。运行时还可用以下两种方式热改：
+
+**方式 A：管理 API**（默认监听 `127.0.0.1:18080`）
+
+```bash
+curl http://127.0.0.1:18080/api/dcs
+curl -X POST http://127.0.0.1:18080/api/dcs \
+  -H 'content-type: application/json' \
+  -d '{"id":1,"host":"1.2.3.4","port":10443,"tcpo_only":true}'
+curl -X POST http://127.0.0.1:18080/api/dc/this -d '{"id":1}'
+curl http://127.0.0.1:18080/api/endpoints   # 输出 .tdesktop-endpoints 内容
+curl -X POST http://127.0.0.1:18080/api/reload
+```
+
+设置 `ADMIN_TOKEN` 后需带 `Authorization: Bearer <token>`。**不要把管理端口暴露到公网。**
+
+**方式 B：编辑数据文件**（自动热加载，200ms 防抖）
+
+把 `docs/dc-endpoints.example.json` 复制为 `DATA_DIR/dc-endpoints.json`，修改 `dcs` 与
+`this_dc` 后保存即可，服务端会自动重读。
+
+**客户端侧**：构建产物里已包含 `.tdesktop-endpoints`，格式为 `dcId host port [tcpo_only]`。
+把它放在 TDesktop 可执行文件同目录，改里面的 IP/端口即可切换服务器，**无需重编译**。
+
+## 8. 安全与合规
 
 - 私钥、`.env`、`DebugLogs/` 已在 `.gitignore` 中，**永不提交**。
 - 不要在公开仓库里放真实手机号、验证码或私钥。

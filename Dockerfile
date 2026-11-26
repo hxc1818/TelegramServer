@@ -23,7 +23,7 @@ COPY schema ./schema
 # 持久化数据目录，非 root 运行。
 RUN mkdir -p /data && chown -R node:node /data
 VOLUME ["/data"]
-EXPOSE 10443
+EXPOSE 10443 18080
 USER node
 
 CMD ["node", "src/server.js"]

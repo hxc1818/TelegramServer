@@ -16,6 +16,9 @@ const DEFAULTS = {
   authCode: '22222',
   layer: 234,
   dbDriver: 'sqlite',
+  adminHost: '127.0.0.1',
+  adminPort: 18080,
+  adminToken: '',
 };
 
 function envInt(name, fallback) {
@@ -96,6 +99,9 @@ export function loadConfig() {
     authCode: process.env.AUTH_CODE || DEFAULTS.authCode,
     layer: envInt('API_LAYER', DEFAULTS.layer),
     dbDriver: (process.env.DB_DRIVER || DEFAULTS.dbDriver).toLowerCase(),
+    adminHost: process.env.ADMIN_HOST || DEFAULTS.adminHost,
+    adminPort: envInt('ADMIN_PORT', DEFAULTS.adminPort),
+    adminToken: process.env.ADMIN_TOKEN || DEFAULTS.adminToken,
     logTL: envBool('LOG_TL', false),
   };
   config.keys = loadKeys(config);

@@ -25,6 +25,7 @@ import { PaymentStore } from './store/payments.js';
 import { PushStore } from './store/push.js';
 import { PushDispatcher } from './push/dispatcher.js';
 import { CallRelay } from './relay/call.js';
+import { createAdminServer, watchDcFile } from './admin/http.js';
 import { Router, methodNameOf } from './rpc/router.js';
 import * as C from './rpc/handlers/codecs.js';
 import { ObfuscatedSocket } from './transport/obfuscation.js';
@@ -107,6 +108,8 @@ export class TelegramServer {
     this.authKeys = new Map(); // authKeyId (hex) -> authKey Buffer
     this.salts = new Map(); // authKeyId (hex) -> bigint salt
     this.server = null;
+    this.adminServer = null;
+    this.stopWatching = null;
   }
 
   /** Start listening. Returns the underlying net.Server. */
@@ -117,12 +120,34 @@ export class TelegramServer {
     this.server.listen(this.config.listenPort, this.config.listenHost, () => {
       console.log(`[server] listening on ${this.config.listenHost}:${this.config.listenPort}`);
     });
+
+    // Hot-update interface: POST /api/dcs or edit DATA_DIR/dc-endpoints.json.
+    if (this.config.adminPort) {
+      this.adminServer = createAdminServer({
+        registry: this.dcRegistry,
+        config: this.config,
+        keys: this.keys,
+        host: this.config.adminHost || '127.0.0.1',
+        port: this.config.adminPort,
+        token: this.config.adminToken,
+      });
+      this.adminServer.listen(this.config.adminPort, this.config.adminHost || '127.0.0.1', () => {
+        console.log(`[admin] listening on ${this.config.adminHost || '127.0.0.1'}:${this.config.adminPort}`);
+      });
+      this.stopWatching = watchDcFile(this.dcRegistry, this.config.dataDir, (result) => {
+        console.log(`[admin] hot-reloaded ${result.dcs.length} DC(s), this_dc=${result.this_dc}`);
+      });
+    }
     return this.server;
   }
 
   close() {
     if (this.server) this.server.close();
     this.server = null;
+    if (this.adminServer) this.adminServer.close();
+    this.adminServer = null;
+    if (this.stopWatching) this.stopWatching();
+    this.stopWatching = null;
     this.mediaStore?.close();
     this.messagingExtra?.close();
     this.groupStore?.close();

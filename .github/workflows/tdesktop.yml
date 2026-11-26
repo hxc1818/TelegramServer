@@ -167,6 +167,7 @@ jobs:
             fi
           fi
           docker run --rm \
+            -u "$(id -u)" \
             -v "$PWD/tdesktop:/src" \
             -w /src \
             -e TDESKTOP_API_ID="$API_ID" \

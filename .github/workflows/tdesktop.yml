@@ -41,6 +41,8 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # TDesktop 冷编译通常需要 1-3 小时，避免被默认/隐式超时中断
+    timeout-minutes: 360
     env:
       SERVER_IP: ${{ inputs.server_ip }}
       SERVER_PORT: ${{ inputs.server_port }}

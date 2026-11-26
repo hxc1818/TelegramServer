@@ -26,6 +26,10 @@ on:
         required: true
         default: 'linux'
         type: string
+      rsa_public_key_pem:
+        description: '服务端公钥（PKCS#1 PEM）。留空则使用仓库 secret RSA_PUBLIC_KEY_PEM'
+        required: false
+        type: string
 
 permissions:
   contents: write
@@ -46,7 +50,8 @@ jobs:
       API_ID: ${{ secrets.TELEGRAM_API_ID || '17349' }}
       API_HASH: ${{ secrets.TELEGRAM_API_HASH || '344583e45741c457fe1862106095a5eb' }}
       # 必须和服务端 RSA_PRIVATE_KEY 配对，否则握手阶段客户端会报找不到公钥。
-      RSA_PEM: ${{ secrets.RSA_PUBLIC_KEY_PEM }}
+      # 本地联调可直接把公钥作为参数传入，无需在仓库里配置 secret。
+      RSA_PEM: ${{ inputs.rsa_public_key_pem || secrets.RSA_PUBLIC_KEY_PEM }}
     steps:
       - name: Checkout this repo
         uses: actions/checkout@v4

@@ -1,0 +1,154 @@
+name: Build patched TDesktop (Windows)
+
+# Windows 产物可以直接在本机运行。DC/RSA 补丁与 Linux 工作流共用同一脚本。
+on:
+  workflow_dispatch:
+    inputs:
+      server_ip:
+        description: '服务器 IP（本地联调用 127.0.0.1）'
+        required: true
+        type: string
+      server_port:
+        description: '服务器 TCP 端口'
+        required: true
+        default: '10443'
+        type: string
+      tdesktop_ref:
+        description: 'TDesktop 提交 SHA'
+        required: true
+        default: '2600e13c7f1cd7d6afdc4bc3d2b04810f3d57662'
+        type: string
+      rsa_public_key_pem:
+        description: '服务端 RSA 公钥（PKCS#1 PEM），留空则用 secret'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: tdesktop-win-${{ inputs.server_ip }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 600
+    defaults:
+      run:
+        shell: cmd
+    env:
+      SERVER_IP: ${{ inputs.server_ip }}
+      SERVER_PORT: ${{ inputs.server_port }}
+      TD_REF: ${{ inputs.tdesktop_ref }}
+      RSA_PEM: ${{ inputs.rsa_public_key_pem || secrets.RSA_PUBLIC_KEY_PEM }}
+      API_ID: ${{ secrets.TELEGRAM_API_ID || '17349' }}
+      API_HASH: ${{ secrets.TELEGRAM_API_HASH || '344583e45741c457fe1862106095a5eb' }}
+
+    steps:
+      - name: Checkout this repo
+        uses: actions/checkout@v4
+
+      - name: Clone pinned TDesktop with submodules
+        run: |
+          git clone --recurse-submodules https://github.com/telegramdesktop/tdesktop.git tdesktop
+          cd tdesktop
+          git checkout --detach %TD_REF%
+          git submodule update --init --recursive
+
+      - name: Write RSA public key to file
+        shell: pwsh
+        run: |
+          if (-not $env:RSA_PEM -or -not $env:RSA_PEM.Contains('BEGIN RSA PUBLIC KEY')) {
+            throw 'RSA public key missing or not PKCS#1'
+          }
+          $path = Join-Path $env:RUNNER_TEMP 'rsa.pub.pem'
+          [System.IO.File]::WriteAllText($path, $env:RSA_PEM)
+          Write-Host "Wrote $path"
+
+      - name: Patch DC options and RSA keys
+        run: |
+          python client\patches\dc_options.patch ^
+            --ip %SERVER_IP% --port %SERVER_PORT% ^
+            --pem "%RUNNER_TEMP%\rsa.pub.pem" ^
+            --source "tdesktop\Telegram\SourceFiles\mtproto\mtproto_dc_options.cpp"
+
+      - name: Native Tools Command Prompt (VS 2026 x64)
+        uses: Eden-CI/msvc-dev-cmd@master
+        with:
+          arch: x64
+          sdk: '10.0.26100.0'
+          toolset: '14.44'
+
+      - name: NuGet sources
+        run: |
+          nuget sources Disable -Name "Microsoft Visual Studio Offline Packages"
+          nuget sources Add -Source https://api.nuget.org/v3/index.json & exit 0
+
+      - name: Prepare Windows libraries (Qt / FFmpeg / etc.)
+        run: |
+          set CARGO_INCREMENTAL=0
+          call tdesktop\Telegram\build\prepare\win.bat skip-release silent
+
+      - name: Configure
+        run: |
+          cd tdesktop\Telegram
+          call configure.bat x64 ^
+            -D TDESKTOP_API_ID=%API_ID% ^
+            -D TDESKTOP_API_HASH=%API_HASH% ^
+            -D CMAKE_CONFIGURATION_TYPES=Debug ^
+            -D DESKTOP_APP_DISABLE_AUTOUPDATE=ON ^
+            -D DESKTOP_APP_DISABLE_CRASH_REPORTS=ON
+
+      - name: Build Telegram.exe
+        run: |
+          cd tdesktop
+          cmake --build out --config Debug --parallel
+
+      - name: Package Windows artifact
+        id: package
+        shell: pwsh
+        run: |
+          $out = 'tdesktop\out\Debug'
+          if (-not (Test-Path "$out\Telegram.exe")) { throw "Telegram.exe not found in $out" }
+          $dir = Join-Path $env:RUNNER_TEMP 'artifact-win'
+          New-Item -ItemType Directory -Force -Path $dir | Out-Null
+          Copy-Item "$out\Telegram.exe" $dir
+          if (Test-Path "$out\Updater.exe") { Copy-Item "$out\Updater.exe" $dir }
+          $endpoints = Join-Path $dir '.tdesktop-endpoints'
+          [System.IO.File]::WriteAllText($endpoints, "1 $env:SERVER_IP $env:SERVER_PORT tcpo_only`n")
+          $zip = "tdesktop-win-$($env:TD_REF.Substring(0,12)).zip"
+          $files = Get-ChildItem -LiteralPath $dir -Force | Select-Object -ExpandProperty FullName
+          Compress-Archive -Path $files -DestinationPath $zip -Force
+          "asset=$zip" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          Get-Item $zip | Select-Object Name,Length
+
+      - name: Publish to orphan branch 'artifacts-win'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $asset = '${{ steps.package.outputs.asset }}'
+          if (-not $asset) { $asset = (Get-ChildItem -Filter 'tdesktop-win-*.zip' | Select-Object -First 1).Name }
+          $tmp = Join-Path $env:RUNNER_TEMP 'orphan-win'
+          New-Item -ItemType Directory -Force -Path $tmp | Out-Null
+          Copy-Item $asset $tmp
+          Push-Location $tmp
+          git init -q -b artifacts-win
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -f $asset
+          git commit -q -m "Patched TDesktop Windows for $env:SERVER_IP`:$env:SERVER_PORT"
+          git push --force "https://x-access-token:$env:GH_TOKEN@github.com/$env:GITHUB_REPOSITORY.git" HEAD:refs/heads/artifacts-win
+          Pop-Location
+
+      - name: Upload Release asset
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: tdesktop-win-${{ github.run_id }}
+          name: Patched TDesktop (Windows) - run ${{ github.run_number }}
+          body: |
+            服务器：${{ inputs.server_ip }}:${{ inputs.server_port }}
+            TDesktop：${{ inputs.tdesktop_ref }}
+            解压后修改 .tdesktop-endpoints 即可热切换服务器地址。
+          files: tdesktop-win-*.zip
